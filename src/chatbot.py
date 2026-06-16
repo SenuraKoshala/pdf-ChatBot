@@ -13,13 +13,22 @@ model = genai.GenerativeModel(
 def ask_llm(context, question):
 
     prompt = f"""
-Answer ONLY using the supplied context.
+You are a helpful assistant.
+
+Use ONLY the provided context to answer.
+
+If the answer is not found in the context,
+say:
+
+"I could not find that information in the documents."
 
 Context:
 {context}
 
 Question:
 {question}
+
+Answer:
 """
 
     response = model.generate_content(

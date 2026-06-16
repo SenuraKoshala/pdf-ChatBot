@@ -1,19 +1,32 @@
-from src.pdf_reader import read_pdf
+from src.pdf_reader import read_all_pdfs
 from src.chunker import chunk_text
 from src.vector_store import add_chunks
 
-from src.config import PDF_PATH
+from src.config import PDF_FOLDER
 
-print("Reading PDF...")
+documents = read_all_pdfs(PDF_FOLDER)
 
-text = read_pdf(PDF_PATH)
+all_chunks = []
 
-print("Chunking...")
+for document in documents:
 
-chunks = chunk_text(text)
+    chunks = chunk_text(
+        document["text"]
+    )
 
-print(f"Chunks: {len(chunks)}")
+    for chunk in chunks:
 
-add_chunks(chunks)
+        all_chunks.append(
+            {
+                "text": chunk,
+                "source": document["filename"]
+            }
+        )
 
-print("Stored in Vector DB.")
+print(
+    f"Total chunks: {len(all_chunks)}"
+)
+
+add_chunks(all_chunks)
+
+print("Done.")

@@ -11,18 +11,28 @@ while True:
     if question.lower() == "exit":
         break
 
-    query_embedding = get_embedding(
-        question
-    )
+    # Create embedding for question
+    query_embedding = get_embedding(question)
 
-    results = search(
-        query_embedding
-    )
+    # Search vector database
+    results = search(query_embedding)
 
-    context = "\n".join(
-        results["documents"][0]
-    )
+    # Get matching chunks
+    documents = results["documents"][0]
 
+    # Get metadata
+    metadatas = results["metadatas"][0]
+
+    # Build context
+    context = "\n\n".join(documents)
+
+    # Extract source names
+    sources = []
+
+    for metadata in metadatas:
+        sources.append(metadata["source"])
+
+    # Ask Gemini
     answer = ask_llm(
         context,
         question
@@ -30,3 +40,8 @@ while True:
 
     print("\nAnswer:")
     print(answer)
+
+    print("\nSources:")
+
+    for source in set(sources):
+        print(f"- {source}")

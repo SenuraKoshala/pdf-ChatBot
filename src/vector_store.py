@@ -19,7 +19,12 @@ def add_chunks(chunks):
 
         collection.add(
             ids=[str(i)],
-            documents=[chunk]
+            documents=[chunk["text"]],
+            metadatas=[
+                {
+                    "source": chunk["source"]
+                }
+            ]
         )
 
 def search(query_embedding):

@@ -4,4 +4,4 @@
 venv
 db
 src/__pycache__/
-data/sample.pdf
+data/
