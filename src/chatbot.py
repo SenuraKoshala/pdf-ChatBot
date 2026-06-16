@@ -36,3 +36,26 @@ Answer:
     )
 
     return response.text
+
+
+def answer_with_context(
+    tool,
+    result,
+    question
+):
+    prompt = f"""
+Tool used:
+{tool}
+
+Tool Result:
+{result}
+
+User Question:
+{question}
+
+Provide a helpful answer.
+"""
+    response = model.generate_content(prompt)
+    print(response.text)
+
+    return response.text
