@@ -1,58 +1,85 @@
-from src.agent_planner import plan_tools
+from google.genai import types
+from src.chatbot import client
 from src.tool_executor import execute_tool
-from src.chatbot import model
+
+MODEL = "gemini-2.5-flash"
+
+TOOLS = [
+    types.Tool(function_declarations=[
+        types.FunctionDeclaration(
+            name="pdf_search",
+            description="Search PDF documents for information about a topic",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "question": types.Schema(
+                        type=types.Type.STRING,
+                        description="The question to search for in the PDFs"
+                    )
+                },
+                required=["question"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="calculator",
+            description="Evaluate a math expression and return the numeric result",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "expression": types.Schema(
+                        type=types.Type.STRING,
+                        description="The math expression to evaluate, e.g. 15 * 20"
+                    )
+                },
+                required=["expression"]
+            )
+        )
+    ])
+]
 
 def run_multi_agent(question):
 
-    # STEP 1: PLAN
-    plan = plan_tools(question)
+    contents = [types.Content(role="user", parts=[types.Part(text=question)])]
 
-    print("\n[PLAN]")
-    print(plan)
+    while True:
 
-    tool_results = []
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(tools=TOOLS)
+        )
 
-    # STEP 2: EXECUTE EACH TOOL
-    for step in plan:
+        candidate = response.candidates[0]
+        contents.append(candidate.content)
 
-        tool = step["tool"]
-        tool_input = step["input"]
+        function_calls = [p for p in candidate.content.parts if p.function_call]
 
-        print(f"\n[EXECUTING] {tool}: {tool_input}")
+        if not function_calls:
+            return response.text
 
-        result = execute_tool(tool, tool_input)
+        tool_response_parts = []
 
-        tool_results.append({
-            "tool": tool,
-            "input": tool_input,
-            "result": result
-        })
+        for part in function_calls:
+            fc = part.function_call
+            args = dict(fc.args)
+            print(f"\n[TOOL CALL] {fc.name}({args})")
 
-    # STEP 3: BUILD CONTEXT
-    context = ""
+            if fc.name == "pdf_search":
+                result = execute_tool("pdf_search", args["question"])
+            elif fc.name == "calculator":
+                result = execute_tool("calculator", args["expression"])
+            else:
+                result = "Unknown tool"
 
-    for item in tool_results:
+            print(f"[RESULT] {result}")
 
-        context += f"""
-Tool: {item['tool']}
-Input: {item['input']}
-Result: {item['result']}
-"""
-    
-    # STEP 4: FINAL ANSWER
-    final_prompt = f"""
-You are a helpful AI assistant.
+            tool_response_parts.append(
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        name=fc.name,
+                        response={"result": result}
+                    )
+                )
+            )
 
-Use the tool results below to answer.
-
-{context}
-
-User Question:
-{question}
-
-Final Answer:
-"""
-
-    response = model.generate_content(final_prompt)
-
-    return response.text
+        contents.append(types.Content(role="user", parts=tool_response_parts))
